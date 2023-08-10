@@ -61,10 +61,12 @@ export function usePlugins(
     return ref.current;
 }
 
-export function useGoBack(): () => void {
+export function useGoBack(url?: string): () => void {
     const history = useHistory();
     const goBack = useCallback(() => {
-        if (history.action !== 'POP') {
+        if (url) {
+            history.push(url);
+        } else if (history.action !== 'POP') {
             history.goBack();
         } else {
             history.push('/');

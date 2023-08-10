@@ -8,14 +8,20 @@ import Text from 'antd/lib/typography/Text';
 import { LeftOutlined } from '@ant-design/icons';
 import { useGoBack } from 'utils/hooks';
 
-function GoBackButton(): JSX.Element {
-    const goBack = useGoBack();
+interface Props {
+    text?: string;
+    url?: string;
+}
+
+function GoBackButton(props: Props): JSX.Element {
+    const { text, url } = props;
+    const goBack = useGoBack(url);
     return (
         <>
             <Button style={{ marginRight: 8 }} onClick={goBack}>
                 <LeftOutlined />
             </Button>
-            <Text style={{ userSelect: 'none' }} strong>Back</Text>
+            <Text style={{ userSelect: 'none' }} strong>{text || 'Back'}</Text>
         </>
     );
 }
