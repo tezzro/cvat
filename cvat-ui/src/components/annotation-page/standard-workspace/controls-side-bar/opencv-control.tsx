@@ -6,11 +6,10 @@ import React from 'react';
 import { connect } from 'react-redux';
 import { Row, Col } from 'antd/lib/grid';
 import Popover from 'antd/lib/popover';
-import Icon, { AreaChartOutlined, ScissorOutlined } from '@ant-design/icons';
+import Icon, { AreaChartOutlined, LoadingOutlined, ScissorOutlined } from '@ant-design/icons';
 import Text from 'antd/lib/typography/Text';
 import Tabs from 'antd/lib/tabs';
 import Button from 'antd/lib/button';
-import Progress from 'antd/lib/progress';
 import Select from 'antd/lib/select';
 import notification from 'antd/lib/notification';
 import message from 'antd/lib/message';
@@ -73,7 +72,6 @@ interface TrackedShape {
 interface State {
     libraryInitialized: boolean;
     initializationError: boolean;
-    initializationProgress: number;
     activeLabelID: number;
     approxPolyAccuracy: number;
     activeImageModifiers: ImageModifier[];
@@ -149,7 +147,6 @@ class OpenCVControlComponent extends React.PureComponent<Props & DispatchToProps
         this.state = {
             libraryInitialized: openCVWrapper.isInitialized,
             initializationError: false,
-            initializationProgress: -1,
             approxPolyAccuracy: defaultApproxPolyAccuracy,
             activeLabelID: labels.length ? labels[0].id : null,
             activeImageModifiers: [],
@@ -210,7 +207,6 @@ class OpenCVControlComponent extends React.PureComponent<Props & DispatchToProps
         const { canvasInstance } = this.props;
         canvasInstance.html().removeEventListener('canvas.interacted', this.interactionListener);
         canvasInstance.html().removeEventListener('canvas.setup', this.runImageModifier);
-        openCVWrapper.removeProgressCallback();
     }
 
     private interactionListener = async (e: Event): Promise<void> => {
@@ -607,13 +603,8 @@ class OpenCVControlComponent extends React.PureComponent<Props & DispatchToProps
 
     private async initializeOpenCV():Promise<void> {
         try {
-            this.setState({
-                initializationError: false,
-                initializationProgress: 0,
-            });
-            await openCVWrapper.initialize((progress: number) => {
-                this.setState({ initializationProgress: progress });
-            });
+            this.setState({ initializationError: false });
+            await openCVWrapper.initialize();
             const trackers = Object.values(openCVWrapper.tracking);
             this.setState({
                 libraryInitialized: true,
@@ -625,10 +616,7 @@ class OpenCVControlComponent extends React.PureComponent<Props & DispatchToProps
                 description: error.toString(),
                 message: 'Could not initialize OpenCV library',
             });
-            this.setState({
-                initializationError: true,
-                initializationProgress: -1,
-            });
+            this.setState({ initializationError: true });
         }
     }
 
@@ -793,7 +781,7 @@ class OpenCVControlComponent extends React.PureComponent<Props & DispatchToProps
     }
 
     private renderContent(): JSX.Element {
-        const { libraryInitialized, initializationProgress, initializationError } = this.state;
+        const { libraryInitialized, initializationError } = this.state;
 
         return (
             <div className='cvat-opencv-control-popover-content'>
@@ -818,30 +806,17 @@ class OpenCVControlComponent extends React.PureComponent<Props & DispatchToProps
                     </Tabs>
                 ) : (
                     <>
-                        <Row justify='start' align='middle'>
+                        <Row justify='center' align='middle'>
                             <Col>
                                 {
-                                    initializationProgress >= 0 ?
-                                        <Text>OpenCV is loading</Text> : (
-                                            <Button
-                                                className='cvat-opencv-initialization-button'
-                                                onClick={() => { this.initializeOpenCV(); }}
-                                            >
-                                                Reload OpenCV
-                                            </Button>
-                                        )
+                                    !initializationError ? (
+                                        <>
+                                            <Text>OpenCV is loading </Text>
+                                            <LoadingOutlined />
+                                        </>
+                                    ) : <Text> Initialization error </Text>
                                 }
                             </Col>
-                            {initializationProgress >= 0 && (
-                                <Col>
-                                    <Progress
-                                        width={8 * 5}
-                                        percent={initializationProgress}
-                                        type='circle'
-                                        status={initializationError ? 'exception' : undefined}
-                                    />
-                                </Col>
-                            )}
                         </Row>
                     </>
                 )}
@@ -853,7 +828,7 @@ class OpenCVControlComponent extends React.PureComponent<Props & DispatchToProps
         const {
             isActivated, canvasInstance, labels, frameData,
         } = this.props;
-        const { libraryInitialized, approxPolyAccuracy, mode } = this.state;
+        const { approxPolyAccuracy, mode } = this.state;
         const dynamicPopoverProps = isActivated ?
             {
                 overlayStyle: {
@@ -883,15 +858,8 @@ class OpenCVControlComponent extends React.PureComponent<Props & DispatchToProps
                     overlayClassName='cvat-opencv-control-popover'
                     content={this.renderContent()}
                     onVisibleChange={(visible: boolean) => {
-                        const { initializationProgress } = this.state;
-                        if (!visible || initializationProgress >= 0) return;
-
-                        if (!openCVWrapper.isInitialized || openCVWrapper.initializationInProgress) {
+                        if (visible && !openCVWrapper.isInitialized && !openCVWrapper.initializationInProgress) {
                             this.initializeOpenCV();
-                        } else if (libraryInitialized !== openCVWrapper.isInitialized) {
-                            this.setState({
-                                libraryInitialized: openCVWrapper.isInitialized,
-                            });
                         }
                     }}
                 >

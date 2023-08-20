@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-@import 'base.scss';
+@import 'base';
 
 .cvat-standard-workspace.ant-layout {
     height: 100%;
@@ -198,11 +198,6 @@
     .ant-progress {
         margin-left: $grid-unit-size;
     }
-}
-
-.cvat-opencv-initialization-button {
-    width: 100%;
-    margin: $grid-unit-size 0;
 }
 
 .cvat-opencv-drawing-tools {

@@ -45,83 +45,74 @@ export enum MatType {
 }
 
 export class OpenCVWrapper {
+    #script: HTMLScriptElement | null;
     private initialized: boolean;
     private cv: any;
-    private onProgress: ((percent: number) => void) | null;
     private injectionProcess: Promise<void> | null;
 
     public constructor() {
+        this.#script = null;
         this.initialized = false;
         this.cv = null;
-        this.onProgress = null;
         this.injectionProcess = null;
     }
 
-    private checkInitialization() {
+    private checkInitialization(): void {
         if (!this.initialized) {
             throw new Error('Need to initialize OpenCV first');
         }
     }
 
     private async inject(): Promise<void> {
-        const response = await fetch(`${baseURL}/assets/opencv.js`);
-        if (response.status !== 200) {
-            throw new Error(`Response status ${response.status}. ${response.statusText}`);
+        const url = `${baseURL}/assets/opencv.js`;
+        if (!this.#script) {
+            this.#script = document.createElement('script');
+            this.#script.setAttribute('type', 'text/javascript');
+
+            this.#script.addEventListener('error', () => {
+                this.#script?.remove();
+                this.#script = null;
+            }, { once: true });
+
+            this.#script.setAttribute('src', url);
+            document.getElementsByTagName('head')[0].appendChild(this.#script as HTMLScriptElement);
         }
 
-        const contentLength = response.headers.get('Content-Length');
-        const { body } = response;
+        const wait = (): Promise<void> => new Promise((resolve, reject) => {
+            let timeout = 60000;
+            const checkInititalized = (): void => {
+                if (!this.#script) {
+                    reject(new Error('Could not fetch the script'));
+                }
 
-        if (body === null) {
-            throw new Error('Response body is null, but necessary');
-        }
+                if ((window as any).cv) {
+                    this.cv = (window as any).cv;
+                    resolve();
+                } else {
+                    timeout -= 200;
+                    if (timeout > 0) {
+                        setTimeout(checkInititalized, 200);
+                    } else {
+                        reject(new Error('Initialization timeout'));
+                    }
+                }
+            };
 
-        const decoder = new TextDecoder('utf-8');
-        const reader = (body as ReadableStream<Uint8Array>).getReader();
-        let received = false;
-        let receivedLength = 0;
-        let decodedScript = '';
+            setTimeout(checkInititalized, 200);
+        });
 
-        while (!received) {
-            // await in the loop is necessary here
-            // eslint-disable-next-line
-            const { done, value } = await reader.read();
-            received = done;
-
-            if (value instanceof Uint8Array) {
-                decodedScript += decoder.decode(value);
-                receivedLength += value.length;
-                // Cypress workaround: content-length is always zero in cypress, it is done optional here
-                // Just progress bar will be disabled
-                const percentage = contentLength ? (receivedLength * 100) / +(contentLength as string) : 0;
-                if (this.onProgress) this.onProgress(+percentage.toFixed(0));
-            }
-        }
-
-        // Inject opencv to DOM
-        // eslint-disable-next-line @typescript-eslint/no-implied-eval
-        const OpenCVConstructor = new Function(decodedScript);
-        OpenCVConstructor();
-
-        const global = window as any;
-
-        this.cv = await global.cv;
+        await wait();
     }
 
-    public async initialize(onProgress: (percent: number) => void): Promise<void> {
-        this.onProgress = onProgress;
-
+    public async initialize(): Promise<void> {
         if (!this.injectionProcess) {
             this.injectionProcess = this.inject();
+            this.injectionProcess.finally(() => {
+                this.injectionProcess = null;
+            });
         }
         await this.injectionProcess;
-
-        this.injectionProcess = null;
         this.initialized = true;
-    }
-
-    public removeProgressCallback(): void {
-        this.onProgress = null;
     }
 
     public get isInitialized(): boolean {
