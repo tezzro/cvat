@@ -49,7 +49,7 @@ export enum HighlightSeverity {
 }
 
 export interface HighlightedElements {
-    elementsIDs: number [];
+    elementsIDs: number[];
     severity: HighlightSeverity;
 }
 
@@ -163,8 +163,8 @@ export interface SplitData {
 }
 
 export enum FrameZoom {
-    MIN = 0.1,
-    MAX = 10,
+    MIN = 0.5,
+    MAX = 100,
 }
 
 export enum UpdateReasons {
@@ -307,11 +307,14 @@ function disableInternalSVGDrawing(data: DrawData | MasksEditData, currentData: 
     // first close stops internal drawing/editing with svg.js
     // the second one stops drawing/editing mask itself
 
-    return !data.enabled && currentData.enabled &&
+    return (
+        !data.enabled &&
+        currentData.enabled &&
         (('shapeType' in currentData && currentData.shapeType === 'mask') ||
-        ('state' in currentData && currentData.state.shapeType === 'mask')) &&
+            ('state' in currentData && currentData.state.shapeType === 'mask')) &&
         currentData.brushTool?.type?.startsWith('polygon-') &&
-        hasShapeIsBeingDrawn();
+        hasShapeIsBeingDrawn()
+    );
 }
 
 export class CanvasModelImpl extends MasterImpl implements CanvasModel {
@@ -509,7 +512,8 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
                 throw Error(`Canvas is busy. Action: ${this.data.mode}`);
             }
         }
-        if (frameData.number === this.data.imageID &&
+        if (
+            frameData.number === this.data.imageID &&
             frameData.deleted === this.data.imageIsDeleted &&
             !this.data.configuration.forceFrameUpdate
         ) {
@@ -737,7 +741,9 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
             throw Error('State must be specified when call edit() editing process');
         }
 
-        if (this.data.editData.enabled && editData.enabled &&
+        if (
+            this.data.editData.enabled &&
+            editData.enabled &&
             editData.state.clientID !== this.data.editData.state.clientID
         ) {
             throw Error('State cannot be updated during editing, need to finish current editing first');
@@ -837,7 +843,10 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
             this.data.configuration.displayAllText = configuration.displayAllText;
         }
 
-        if (typeof configuration.textFontSize === 'number' && configuration.textFontSize >= consts.MINIMUM_TEXT_FONT_SIZE) {
+        if (
+            typeof configuration.textFontSize === 'number' &&
+            configuration.textFontSize >= consts.MINIMUM_TEXT_FONT_SIZE
+        ) {
             this.data.configuration.textFontSize = configuration.textFontSize;
         }
 
@@ -851,7 +860,11 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
 
         if (typeof configuration.textContent === 'string') {
             const splitted = configuration.textContent.split(',').filter((entry: string) => !!entry);
-            if (splitted.every((entry: string) => ['id', 'label', 'attributes', 'source', 'descriptions'].includes(entry))) {
+            if (
+                splitted.every((entry: string) =>
+                    ['id', 'label', 'attributes', 'source', 'descriptions'].includes(entry),
+                )
+            ) {
                 this.data.configuration.textContent = configuration.textContent;
             }
         }
@@ -905,7 +918,8 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
     }
 
     public isAbleToChangeFrame(): boolean {
-        const isUnable = [Mode.DRAG, Mode.EDIT, Mode.RESIZE, Mode.INTERACT].includes(this.data.mode) ||
+        const isUnable =
+            [Mode.DRAG, Mode.EDIT, Mode.RESIZE, Mode.INTERACT].includes(this.data.mode) ||
             (this.data.mode === Mode.DRAW && typeof this.data.drawData.redraw === 'number');
 
         return !isUnable;
