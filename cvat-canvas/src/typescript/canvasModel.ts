@@ -163,8 +163,8 @@ export interface SplitData {
 }
 
 export enum FrameZoom {
-    MIN = 0.1,
-    MAX = 10,
+    MIN = 0.5,
+    MAX = 100,
 }
 
 export enum UpdateReasons {
